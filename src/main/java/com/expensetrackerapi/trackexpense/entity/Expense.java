@@ -4,10 +4,12 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.persistence.PreUpdate;
+
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
-public class Expense {
+public class Expense implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,6 +21,9 @@ public class Expense {
     private Long version;
     @Column(nullable = false)
     private LocalDateTime lastModified;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id" , nullable = false)
+    private User user;
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -30,6 +35,14 @@ public class Expense {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 
     public Expense(Long id, String title, double amount) {
         this.id = id;

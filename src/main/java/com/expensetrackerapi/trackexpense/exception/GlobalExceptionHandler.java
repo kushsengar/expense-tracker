@@ -66,29 +66,29 @@ public class GlobalExceptionHandler {
                         HttpServletRequest request) {
 
                 ApiError apiError = new ApiError(
-                                404,
-                                "Not Found",
-                                ex.getMessage(),
-                                request.getRequestURI());
-
-                return new ResponseEntity<>(apiError, HttpStatus.NOT_FOUND);
-        }
-
-        /* ---------------- LAST RESORT (IMPORTANT) ---------------- */
-
-        @ExceptionHandler(Exception.class)
-        public ResponseEntity<ApiError> handleAll(
-                        Exception ex,
-                        HttpServletRequest request) {
-
-                ApiError apiError = new ApiError(
                                 500,
                                 "Internal Server Error",
-                                "Something went wrong",
+                                ex.getMessage(),
                                 request.getRequestURI());
 
                 return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
+        /* ---------------- LAST RESORT (IMPORTANT) ---------------- */
+
+//        @ExceptionHandler(Exception.class)
+//        public ResponseEntity<ApiError> handleAll(
+//                        Exception ex,
+//                        HttpServletRequest request) {
+//
+//                ApiError apiError = new ApiError(
+//                                500,
+//                                "Internal Server Error",
+//                                "Something went wrong",
+//                                request.getRequestURI());
+//
+//                return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);
+//        }
 
         /*--------------------EXPENSE NOT FOUND---------------------*/
 

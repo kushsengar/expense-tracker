@@ -1,8 +1,12 @@
 package com.expensetrackerapi.trackexpense.dto;
 
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
 import java.time.LocalDate;
 
-public class ExpenseFilter {
+@NoArgsConstructor
+public class ExpenseFilter implements Serializable {
 
     private Double minAmount;
     private Double maxAmount;

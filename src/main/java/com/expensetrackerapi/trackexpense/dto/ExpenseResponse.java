@@ -1,8 +1,13 @@
 package com.expensetrackerapi.trackexpense.dto;
 
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class ExpenseResponse {
+@NoArgsConstructor
+public class ExpenseResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
     private Long id;
     private String title;
     private Double amount;

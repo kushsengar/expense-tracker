@@ -5,9 +5,15 @@ import com.expensetrackerapi.trackexpense.dto.ExpenseRequest;
 import com.expensetrackerapi.trackexpense.dto.ExpenseResponse;
 import com.expensetrackerapi.trackexpense.dto.PaginatedResponse;
 import com.expensetrackerapi.trackexpense.entity.Expense;
+import com.expensetrackerapi.trackexpense.entity.User;
 import com.expensetrackerapi.trackexpense.exception.ExpenseNotFoundException;
 import com.expensetrackerapi.trackexpense.respository.ExpenseRepository;
 import com.expensetrackerapi.trackexpense.specification.ExpenseSpecification;
+//import jakarta.transaction.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,6 +25,8 @@ import org.springframework.data.domain.Pageable;
 import java.util.Set;
 
 @Service
+@Transactional
+
 public class ExpenseService {
     // private List<Expense> expenses = new ArrayList<>();
     private static final int MAX_PAGE_SIZE = 50;
@@ -26,6 +34,11 @@ public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("id", "title", "amount", "createdAt");
 
+    public User getCurrentUser() {
+        return (User) SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getPrincipal();
+    }
     public ExpenseService(ExpenseRepository expenseRepository) {
         this.expenseRepository = expenseRepository;
     }
@@ -35,50 +48,65 @@ public class ExpenseService {
                 expense.getLastModified());
     }
 
+    @Transactional(readOnly = true)
+    @Cacheable(value = "expenses", key = "T(java.util.Objects).hash(#filter.minAmount, #filter.maxAmount, #filter.title, #filter.fromDate, #filter.toDate, #pageable.pageNumber, #pageable.pageSize, #pageable.sort.toString())")
     public PaginatedResponse<ExpenseResponse> getAllExpenses(ExpenseFilter filter, Pageable pageable) {
+
+        User user = getCurrentUser();
+
         int page = pageable.getPageNumber();
         int size = pageable.getPageSize();
-        if (size <= 0) {
-            size = DEFAULT_PAGE_SIZE;
-        }
-        if (size > MAX_PAGE_SIZE) {
-            size = MAX_PAGE_SIZE;
-        }
+
+        if (size <= 0) size = DEFAULT_PAGE_SIZE;
+        if (size > MAX_PAGE_SIZE) size = MAX_PAGE_SIZE;
+
         if (filter.getFromDate() != null && filter.getToDate() != null &&
                 filter.getFromDate().isAfter(filter.getToDate())) {
             throw new IllegalArgumentException("fromDate cannot be after toDate");
         }
+
         Specification<Expense> spec = Specification.allOf();
+
+        spec = spec.and(ExpenseSpecification.hasUser(user));
         spec = spec.and(ExpenseSpecification.hasMinAmount(filter.getMinAmount()));
         spec = spec.and(ExpenseSpecification.hasMaxAmount(filter.getMaxAmount()));
         spec = spec.and(ExpenseSpecification.titleContains(filter.getTitle()));
         spec = spec.and(ExpenseSpecification.fromDate(filter.getFromDate()));
         spec = spec.and(ExpenseSpecification.toDate(filter.getToDate()));
+
         Pageable safePageable = PageRequest.of(page, size, pageable.getSort());
+
         Page<Expense> expensePage = expenseRepository.findAll(spec, safePageable);
-        Page<ExpenseResponse> dtopage = expensePage.map(this::toExpenseResponse);
+
+        Page<ExpenseResponse> dtoPage = expensePage.map(this::toExpenseResponse);
+
         PaginatedResponse<ExpenseResponse> response = new PaginatedResponse<>();
-        response.setItems(dtopage.getContent());
-        response.setTotalPages(dtopage.getTotalPages());
-        response.setPage(dtopage.getNumber());
-        response.setSize(dtopage.getSize());
-        response.setTotalElements(dtopage.getTotalElements());
-        response.setLast(dtopage.isLast());
+        response.setItems(dtoPage.getContent());
+        response.setTotalPages(dtoPage.getTotalPages());
+        response.setPage(dtoPage.getNumber());
+        response.setSize(dtoPage.getSize());
+        response.setTotalElements(dtoPage.getTotalElements());
+        response.setLast(dtoPage.isLast());
+
         return response;
     }
-
+    @CacheEvict(value = "expenses", allEntries = true)
     public ExpenseResponse createExpense(ExpenseRequest expenseRequest) {
+        User user = getCurrentUser();
         Expense expense = new Expense();
         expense.setTitle(expenseRequest.getTitle());
         expense.setAmount(expenseRequest.getAmount());
+        expense.setUser(user);
         return toExpenseResponse(expenseRepository.save(expense));
     }
 
+    @Cacheable(value = "expense-single", key = "#id")
     public Expense getExpenseById(Long id) {
         return expenseRepository.findById(id)
                 .orElseThrow(() -> new ExpenseNotFoundException(id));
     }
 
+    @CacheEvict(value = { "expenses", "expense-single" }, allEntries = true)
     public ResponseEntity<ExpenseResponse> updateExpense(ExpenseRequest expenseRequest, Long id) {
         Expense expense1 = expenseRepository.findById(id).orElse(null);
         if (expense1 != null) {
@@ -90,6 +118,7 @@ public class ExpenseService {
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
+    @CacheEvict(value = { "expenses", "expense-single" }, allEntries = true)
     public ResponseEntity<Object> deleteExpenseById(Long id) {
         if (expenseRepository.existsById(id)) {
             expenseRepository.deleteById(id);

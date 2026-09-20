@@ -1,8 +1,12 @@
 package com.expensetrackerapi.trackexpense.dto;
 
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
 import java.util.List;
 
-public class PaginatedResponse<T> {
+@NoArgsConstructor
+public class PaginatedResponse<T> implements Serializable {
 
     private List<T> items;
     private int page;
@@ -10,9 +14,6 @@ public class PaginatedResponse<T> {
     private long totalElements;
     private int totalPages;
     private boolean last;
-
-    public PaginatedResponse() {
-    }
 
     public List<T> getItems() {
         return items;

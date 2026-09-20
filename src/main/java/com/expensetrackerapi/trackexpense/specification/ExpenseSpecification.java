@@ -1,6 +1,7 @@
 package com.expensetrackerapi.trackexpense.specification;
 
 import com.expensetrackerapi.trackexpense.entity.Expense;
+import com.expensetrackerapi.trackexpense.entity.User;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -15,7 +16,10 @@ public class ExpenseSpecification {
             return criteriaBuilder.greaterThanOrEqualTo(root.get("amount"), minAmount);
         };
     }
-
+    public static Specification<Expense> hasUser(User user) {
+        return (root, query, cb) ->
+                cb.equal(root.get("user"), user);
+    }
     public static Specification<Expense> hasMaxAmount(Double maxAmount) {
         return (root, query, criteriaBuilder) -> {
             if (maxAmount == null) {
